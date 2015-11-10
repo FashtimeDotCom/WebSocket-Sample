@@ -1,0 +1,180 @@
+<!DOCTYPE html>  
+<html>  
+<head>
+<meta charset="UTF-8">
+<title>Testing websockets</title>
+<script type="text/javascript" src="/js/jquery-2.0.0.min.js"></script>
+<link href="/css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+<div id="left">
+	<span>用户列表：</span></br>
+    <div id="userListDiv" style="float:right;"></div>
+</div>
+
+<div id="showMessage">
+  <div id="messages"></div>
+</div>
+
+<div id="footerMessage">
+	<div contenteditable="true" class="test_box" id="mesgageId"></div>
+	<input type="button" value="发送消息" onclick="start()" />
+	<br/><img alt="添加表情" src="/images/biaoqing/biaoqing.png" id="biaoqingImg">
+	<br/>
+	<div style="display:none;" id="biaoqingDiv">
+			<img alt="" src="/images/biaoqing/biaoqing001.gif" class="biaoqingClas">&nbsp;&nbsp;
+			<img alt="" src="/images/biaoqing/biaoqing002.gif" class="biaoqingClas">&nbsp;&nbsp;
+			<img alt="" src="/images/biaoqing/biaoqing003.gif" class="biaoqingClas">&nbsp;&nbsp;
+	</div>
+</div>
+
+<div id="right">
+	<a href="#" onclick="registerDiv();" id="registerAId">注册</a>
+	&nbsp;&nbsp;<a href="#" onclick="loginDiv();" id="loginAId">登录</a>
+	&nbsp;&nbsp;<a href="#" onclick="loginOut();" id="loginOutAId" style="display:none;">注销</a>
+	<div id="registerDiv" style="display:none;">
+		<form action="/user/register" method="post">
+			登录账号：<input type="text" name="account" /><br/>
+			登录密码：<input type="password" name="passWord" /><br/>
+			用户昵称：<input type="text" name="nickName" /><br/>
+			<input type="submit" value="submit" /><br/>
+		</form>
+	</div>
+	<br/>
+	<div id="loginDiv" style="display:none;">
+			登录账号：<input type="text" name="account" id="accountId"/><br/>
+			登录密码：<input type="password" name="passWord" id="passWordId"/><br/>
+			<input type="button" value="login" class="loginBton"/><br/>
+	</div>
+</div>
+ <script type="text/javascript">
+      var userAccount ="Guest";
+      var webSocket = new WebSocket('ws://localhost:8080/websocket');  
+      webSocket.onerror = function(event) {
+          onError(event);
+      };  
+      webSocket.onopen = function(event) {
+          onOpen(event);
+      };  
+      webSocket.onmessage = function(event) {
+          onMessage(event);
+      };
+      webSocket.onclose = function(event) {
+      };
+      function onMessage(event) {
+      	var mes = event.data;//消息格式为：account:message-data,头像规则为account_photo.png
+      	var showMesg = mes;
+      	var mesAccount = mes.split(":")[0];
+          if(mes.indexOf("加入群聊")>-1) {
+         	$("#liId"+mesAccount).removeClass("unlineClass").addClass("onlineClass");
+          }
+         if(mes.indexOf("退出群聊")>-1) {
+          	mes = mes.replace("退出群聊","");
+          	mes = mes.replace("用户","");
+          	$("#liId"+mesAccount).removeClass("onlineClass").addClass("unlineClass");
+          }
+         $("#messages").append("<br /><img src='/images/photo/"+mesAccount+"_photo.png' width='25px' height='25px'/>" + showMesg);
+      }
+      function onOpen(event) {
+          document.getElementById('messages').innerHTML   
+              = 'Connection is opened';
+      }  
+      function onError(event) {  
+          alert("error"+event);
+      }
+      function start() {//点击发送按钮发送消息
+      	var messageStr = $("#mesgageId").html();
+      	messageStr=messageStr.replace("\"","");
+      	messageStr=messageStr.replace("\"","");
+      	var jsonMesage = '{"account":"'+userAccount+'","data":"'+messageStr+'","isFirstLogin":2}';
+        webSocket.send(jsonMesage);
+      	$("#mesgageId").html("");
+        return false;
+      }
+      window.onbeforeunload = function() {
+      	webSocket.close();
+      }
+      function registerDiv() {
+      	$("#registerDiv").css("display","");
+      }
+      function loginDiv() {
+      	$("#loginDiv").css("display","");
+      }
+      $(".loginBton").click(function(){//登录
+       $.ajax({
+       	url:'/user/login',
+       	type:'post',
+       	data:{account:$("#accountId").val(),passWord:$("#passWordId").val()},
+       	dataType:'json',
+       	success:function(data) {
+       		$("#loginDiv").css("display","none");
+       		userAccount=data.account;
+       		webSocket.send('{"account":"'+data.account+'","data":"用户'+data.account+'加入群聊","isFirstLogin":1}');
+       		$("#registerAId").css("display","none"); 
+       		$("#loginAId").css("display","none");
+       		$("#loginOutAId").css("display","");
+            return false;
+       	},error:function(a,b,c) {
+       		alert("登录失败！");
+       	}
+       });
+      });
+      $("#biaoqingImg").click(function(){//打开关闭表情DIV
+      	if($("#biaoqingDiv").css("display")=="none") {
+      		$("#biaoqingDiv").css("display","");
+      	} else {
+      		$("#biaoqingDiv").css("display","none");
+      	}
+      });
+      $(".biaoqingClas").dblclick(function(){//添加表情到发送面板
+      	var htmlBiaoQing = $(this).attr("src"); 
+      	$("#mesgageId").append("<img src='"+htmlBiaoQing+"'>");
+      });
+       $(document).ready(function(){//获得用户列表，加载用户列表到div中
+      	 $.ajax({
+        	url:'/user/userList',
+        	type:'get',
+        	dataType:'json',
+        	success:function(data) {
+        		var htmlDiv = "<ul>";
+        		 $.each(data.userList, function(i,item){
+        			if(item.isLogin==1){
+	        			htmlDiv+="<li class='unlineClass' id='liId"+item.account+
+	        			"'><img src='/images/photo/"+item.account+"_photo.png' width='30px' height='30px'/>"
+	        			+item.nickName+"-"+item.ip+"</li>";
+        			} else if(item.isLogin==2){
+        				htmlDiv+="<li class='onlineClass' id='liId"+item.account+
+        				"'><img src='/images/photo/"+item.account+"_photo.png' width='30px' height='30px'/>"
+        				+item.nickName+"-"+item.ip+"</li>";
+        			}
+        		});
+        		htmlDiv+="</ul>";
+        		$("#userListDiv").html(htmlDiv);
+                return false;
+        	},error:function(a,b,c) {
+        		alert("获取用户列表失败！");
+        	}
+        });
+      });
+       
+       function loginOut() {//退出登录
+      	 $.ajax({
+	        	url:'/user/loginOut',
+	        	data:{account:userAccount},
+	        	type:'get',
+	        	dataType:'json',
+	        	success:function(data) {
+	        		webSocket.send('{"account":"'+userAccount+'","data":"用户'+userAccount+'退出群聊","isFirstLogin":3}');
+	        		$("#registerAId").css("display","");
+       		$("#loginAId").css("display","");
+       		$("#loginOutAId").css("display","none");
+	                return false;
+	        	},error:function(a,b,c) {
+	        		alert("获取用户列表失败！");
+	        	}
+	        });
+       }
+  </script>
+</body>
+</html>

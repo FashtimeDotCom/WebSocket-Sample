@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shengbo.mapper.UserMapper">
+
+	<insert id="register" parameterType="com.shengbo.model.User">
+		<![CDATA[
+			insert into socket_user(ip,islogin,account,password,nickname) 
+			values(#{user.ip},1,#{user.account},#{user.passWord},#{user.nickName})
+		]]>
+	</insert>
+	
+	<update id="loginLog">
+			<![CDATA[
+				update socket_user set ip=#{ip},islogin=2 where account=#{account}
+			]]>
+	</update>
+	
+	<update id="loginOutLog">
+			<![CDATA[
+				update socket_user set islogin=1 where account=#{account}
+			]]>
+	</update>
+	
+	<select id="login" resultType="com.shengbo.model.User">
+		<![CDATA[
+		SELECT 
+			id,ip,islogin as isLogin,account,nickname as nickName 
+		FROM 
+			socket_user 
+		WHERE 
+			account=#{account} AND password=#{passWord}
+		]]>
+	</select>
+	
+	<select id="userList" resultType="com.shengbo.model.User">
+		<![CDATA[
+		SELECT 
+			id,ip,islogin as isLogin,account,nickname as nickName 
+		FROM 
+			socket_user 
+		]]>
+	</select>
+	
+</mapper>
